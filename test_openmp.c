@@ -1,5 +1,7 @@
+#include <stdio.h>
+#include <stdlib.h>
 #include <getopt.h>
-#include "tpool.h"
+#include <pthread.h>
 #define data_type double
 
 struct option opt_options[] = {
@@ -22,26 +24,18 @@ data_type* vec;
 data_type* res;
 int thread_count = -1, opt_index;
 int row, col;
-void* thread_func_mul_matrix_vector(void* arg) {
-    long arg_data = (long) arg;
-    int seg_len = (row + thread_count - 1) / thread_count;
-    int start_row = arg_data * seg_len;
-    int end_row = start_row + seg_len;
-    if (row < end_row) {
-        end_row = row;
-    }
-    for (int i = start_row; i < end_row; ++i) {
+void func() {
+#pragma omp parallel for
+    for (int i = 0; i < row; ++i) {
         data_type t = 0.0;
         for (int j = 0; j < col; ++j) {
             t += matrix[i * col + j] * vec[j];
         }
         res[i] = t;
     }
-    return 0;
 }
 
 int main(int argc, char** argv) {
-    struct tpool pool;
     int opt = getopt_long(argc, argv, opt_string, opt_options, &opt_index);
     if (opt == -1) {
         usage(argv[0]);
@@ -61,7 +55,6 @@ int main(int argc, char** argv) {
         fprintf(stderr, "please give the run threads.\n");
         return -1;
     }
-    tpool_create(&pool, thread_count);
     scanf("%d %d", &row, &col);
     matrix = malloc(row * col * sizeof(data_type));
     vec = malloc(col * sizeof(data_type));
@@ -77,14 +70,10 @@ int main(int argc, char** argv) {
         scanf("%lf", vec + i);
     }
     for (int _t = 0; _t < 100000; ++_t) {
-        for (long i = 0; i < thread_count; ++i) {
-            tpool_add_task(&pool, 0, thread_func_mul_matrix_vector, (void*)i);
-        }
-        tpool_wait(&pool);
+        func();
     }
     printf("%f ", res[233]);
     printf("\n");
-    tpool_destroy(&pool);
     free(matrix);
     free(vec);
     free(res);
