@@ -13,7 +13,7 @@ static void* routine_thread_func(void* arg) {
             pthread_exit(NULL);
         }
         work = &pool->task_queue[pool->queue_head];
-        pool->queue_head = (pool->queue_head + 1) % pool->task_cnt;
+        pool->queue_head = (pool->queue_head + 1) % pool->task_limit;
         pthread_mutex_unlock(&pool->queue_mutex);
         // run task
         work->func(work->arg);
