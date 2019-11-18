@@ -12,16 +12,15 @@ static void* routine_thread_func(void* arg) {
             pthread_mutex_unlock(&pool->queue_mutex);
             pthread_exit(NULL);
         }
-        work = &pool->task_queue[pool->queue_head];
-        pool->queue_head = (pool->queue_head + 1) % pool->task_limit;
+        -- pool->task_cnt;
+        work = pool->queue_head;
+        pool->queue_head = work -> next;
+        pthread_cond_signal(&pool->queue_space);
         pthread_mutex_unlock(&pool->queue_mutex);
         // run task
         work->func(work->arg);
+        free(work);
         pthread_mutex_lock(&pool->queue_mutex);
-        if (pool->task_cnt == pool->task_limit) {
-            pthread_cond_signal(&pool->queue_space);
-        }
-        -- pool->task_cnt;
         if (!pool->task_cnt) {
             pthread_cond_signal(&pool->queue_empty);
         }
@@ -36,8 +35,7 @@ int tpool_create_with_task_limit(struct tpool* pool, int thread_num, int max_tas
     pool->task_limit = max_task_num;
     pool->task_cnt = 0;
     pool->shutdown = 0;
-    pool->queue_end = pool->queue_head = 0;
-    pool->task_queue = malloc(max_task_num * sizeof(struct tpool_work));
+    pool->queue_end = pool->queue_head = NULL;
     pool->thread_handles = malloc(thread_num * sizeof(pthread_t));
     if(pthread_mutex_init(&pool->queue_mutex, NULL) != 0) {
         perror("queue mutex init: ");
@@ -98,10 +96,14 @@ int tpool_destroy(struct tpool* pool) { // direct destroy the threads pool
     pthread_cond_destroy(&pool->queue_ready);
     pthread_cond_destroy(&pool->queue_empty);
     pthread_cond_destroy(&pool->queue_space);
-    free(pool->task_queue);
+    while (pool->queue_head != NULL) {
+        work = pool->queue_head;
+        pool->queue_head = work->next;
+        free(work);
+    }
+    pool->queue_end = NULL;
     free(pool->thread_handles);
     pool->thread_handles = NULL;
-    pool->task_queue = NULL;
     return 0;
 }
 
@@ -121,6 +123,7 @@ int tpool_wait(struct tpool* pool) {  // wait all tasks in threads pool run over
  *
 **/
 int tpool_add_task(struct tpool* pool, int immed, void* (*task_func) (void*), void* arg) {
+    struct tpool_work* work = NULL;
     pthread_mutex_lock(&pool->queue_mutex);
     if (pool->task_cnt == pool->task_limit) {
         if (immed) {
@@ -129,10 +132,16 @@ int tpool_add_task(struct tpool* pool, int immed, void* (*task_func) (void*), vo
         }
         while (pthread_cond_wait(&pool->queue_space, &pool->queue_mutex) != 0);
     }
-    struct tpool_work* task = (pool->task_queue + pool->queue_end);
-    task->func = task_func;
-    task->arg = arg;
-    pool->queue_end = (pool->queue_end + 1) % pool->task_limit;
+    work = malloc(sizeof(struct tpool_work));
+    work->func = task_func;
+    work->arg = arg;
+    if (!pool->task_cnt) {
+        pool->queue_head = pool->queue_end = work;
+    }
+    else {
+        pool->queue_end->next = work;
+        pool->queue_end = work;
+    }
     ++ pool->task_cnt;
     pthread_cond_signal(&pool->queue_ready);
     pthread_mutex_unlock(&pool->queue_mutex);

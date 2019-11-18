@@ -6,6 +6,7 @@
 struct tpool_work {
     void* arg;
     void* (*func) (void*);
+    struct tpool_work* next;
 };
 
 struct tpool {
@@ -19,8 +20,8 @@ struct tpool {
     size_t thread_num; // the number of threads in pool
     size_t task_cnt;   // count thread pool tasks
     size_t task_limit;   // the limit number of tasks in pool
-    struct tpool_work* task_queue;
-    int queue_head, queue_end;
+    struct tpool_work* queue_head;
+    struct tpool_work* queue_end;
 };
 
 int tpool_create_with_task_limit(struct tpool* tpool, int thread_num, int max_task_num); // create the threads pool
