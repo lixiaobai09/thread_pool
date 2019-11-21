@@ -15,16 +15,14 @@ static void* routine_thread_func(void* arg) {
         -- pool->task_cnt;
         work = pool->queue_head;
         pool->queue_head = work -> next;
-        pthread_cond_signal(&pool->queue_space);
         pthread_mutex_unlock(&pool->queue_mutex);
+        pthread_cond_signal(&pool->queue_space);
         // run task
         work->func(work->arg);
         free(work);
-        pthread_mutex_lock(&pool->queue_mutex);
         if (!pool->task_cnt) {
             pthread_cond_signal(&pool->queue_empty);
         }
-        pthread_mutex_unlock(&pool->queue_mutex);
     }
 
     return NULL;
@@ -123,19 +121,19 @@ int tpool_wait(struct tpool* pool) {  // wait all tasks in threads pool run over
  *
 **/
 int tpool_add_task(struct tpool* pool, int immed, void* (*task_func) (void*), void* arg) {
-    struct tpool_work* work = NULL;
+    struct tpool_work* work = malloc(sizeof(struct tpool_work));
+    work->func = task_func;
+    work->arg = arg;
+    work->next = NULL;
     pthread_mutex_lock(&pool->queue_mutex);
     if (pool->task_cnt == pool->task_limit) {
         if (immed) {
+            free(work);
             pthread_mutex_unlock(&pool->queue_mutex);
             return 1;
         }
         while (pthread_cond_wait(&pool->queue_space, &pool->queue_mutex) != 0);
     }
-    work = malloc(sizeof(struct tpool_work));
-    work->func = task_func;
-    work->arg = arg;
-    work->next = NULL;
     if (!pool->task_cnt) {
         pool->queue_head = pool->queue_end = work;
     }
@@ -144,7 +142,7 @@ int tpool_add_task(struct tpool* pool, int immed, void* (*task_func) (void*), vo
         pool->queue_end = work;
     }
     ++ pool->task_cnt;
-    pthread_cond_signal(&pool->queue_ready);
     pthread_mutex_unlock(&pool->queue_mutex);
+    pthread_cond_signal(&pool->queue_ready);
     return 0;
 }
