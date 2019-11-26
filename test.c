@@ -43,6 +43,7 @@ void* thread_func_mul_matrix_vector(void* arg) {
 }
 
 int main(int argc, char** argv) {
+    freopen("out.txt", "r", stdin);
     pthread_t* thread_handles;
     int opt = getopt_long(argc, argv, opt_string, opt_options, &opt_index);
     if (opt == -1) {

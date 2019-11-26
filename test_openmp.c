@@ -36,6 +36,7 @@ void func() {
 }
 
 int main(int argc, char** argv) {
+    freopen("out.txt", "r", stdin);
     int opt = getopt_long(argc, argv, opt_string, opt_options, &opt_index);
     if (opt == -1) {
         usage(argv[0]);

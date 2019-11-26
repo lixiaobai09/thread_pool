@@ -89,7 +89,6 @@ int tpool_destroy(struct tpool* pool) { // direct destroy the threads pool
             return -1;
         }
     }
-    pool->queue_end = pool->queue_head = 0;
     pthread_mutex_destroy(&pool->queue_mutex);
     pthread_cond_destroy(&pool->queue_ready);
     pthread_cond_destroy(&pool->queue_empty);

@@ -24,23 +24,26 @@ int thread_count = -1, opt_index;
 int row, col;
 void* thread_func_mul_matrix_vector(void* arg) {
     long arg_data = (long) arg;
+    int i = arg_data;
     int seg_len = (row + thread_count - 1) / thread_count;
     int start_row = arg_data * seg_len;
     int end_row = start_row + seg_len;
     if (row < end_row) {
         end_row = row;
     }
-    for (int i = start_row; i < end_row; ++i) {
-        data_type t = 0.0;
+    data_type t;
+//    for (int i = start_row; i < end_row; ++i) {
+        t = 0.0;
         for (int j = 0; j < col; ++j) {
             t += matrix[i * col + j] * vec[j];
         }
         res[i] = t;
-    }
+//    }
     return 0;
 }
 
 int main(int argc, char** argv) {
+    freopen("out.txt", "r", stdin);
     struct tpool pool;
     int opt = getopt_long(argc, argv, opt_string, opt_options, &opt_index);
     if (opt == -1) {
@@ -76,8 +79,8 @@ int main(int argc, char** argv) {
     for (int i = 0; i < col; ++i) {
         scanf("%lf", vec + i);
     }
-    for (int _t = 0; _t < 100000; ++_t) {
-        for (long i = 0; i < thread_count; ++i) {
+    for (int _t = 0; _t < 10000; ++_t) {
+        for (long i = 0; i < row /* thread_count */; ++i) {
             tpool_add_task(&pool, 0, thread_func_mul_matrix_vector, (void*)i);
         }
         tpool_wait(&pool);
