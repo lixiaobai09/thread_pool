@@ -106,7 +106,7 @@ int tpool_destroy(struct tpool* pool) { // direct destroy the threads pool
 
 int tpool_wait(struct tpool* pool) {  // wait all tasks in threads pool run over
     pthread_mutex_lock(&pool->queue_mutex);
-    if (pool->task_cnt) {
+    while (pool->task_cnt) {
         while(pthread_cond_wait(&pool->queue_empty, &pool->queue_mutex) != 0);
     }
     pthread_mutex_unlock(&pool->queue_mutex);
