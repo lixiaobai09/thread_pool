@@ -21,7 +21,7 @@ static void* routine_thread_func(void* arg) {
         work->func(work->arg);
         free(work);
         if (!pool->task_cnt) {
-            pthread_cond_signal(&pool->queue_empty);
+            pthread_cond_broadcast(&pool->queue_empty);
         }
     }
 
