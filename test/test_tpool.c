@@ -1,5 +1,6 @@
 #include <getopt.h>
 #include "tpool.h"
+#include "time_count/time_cnt.h"
 #define data_type double
 
 struct option opt_options[] = {
@@ -32,13 +33,13 @@ void* thread_func_mul_matrix_vector(void* arg) {
         end_row = row;
     }
     data_type t;
-//    for (int i = start_row; i < end_row; ++i) {
+    for (int i = start_row; i < end_row; ++i) {
         t = 0.0;
         for (int j = 0; j < col; ++j) {
             t += matrix[i * col + j] * vec[j];
         }
         res[i] = t;
-//    }
+    }
     return 0;
 }
 
@@ -79,14 +80,15 @@ int main(int argc, char** argv) {
     for (int i = 0; i < col; ++i) {
         scanf("%lf", vec + i);
     }
+    start_run_counter();
     for (int _t = 0; _t < 10000; ++_t) {
-        for (long i = 0; i < row /* thread_count */; ++i) {
+        for (long i = 0; i < thread_count; ++i) {
             tpool_add_task(&pool, 0, thread_func_mul_matrix_vector, (void*)i);
         }
         tpool_wait(&pool);
     }
-    printf("%f ", res[233]);
-    printf("\n");
+    printf("result check: %f\n", res[233]);
+    get_run_counter(1);
     tpool_destroy(&pool);
     free(matrix);
     free(vec);

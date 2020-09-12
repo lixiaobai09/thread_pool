@@ -1,4 +1,12 @@
 #include "tpool.h"
+#include <string.h>
+
+#define CHECK(e) { \
+    if (e) { \
+        printf("[line %d] return errno %d with error info:", __LINE__, e, strerror(e)); \
+        exit(0); \
+    } \
+}
 
 static void* routine_thread_func(void* arg) {
     struct tpool* pool = (struct tpool*) arg;
@@ -6,7 +14,8 @@ static void* routine_thread_func(void* arg) {
     while(1) {
         pthread_mutex_lock(&pool->queue_mutex);
         while (!pool->task_cnt && !pool->shutdown) { // wait for task push into queue
-            while (pthread_cond_wait(&pool->queue_ready, &pool->queue_mutex) != 0);
+            int err = pthread_cond_wait(&pool->queue_ready, &pool->queue_mutex);
+            CHECK(err);
         }
         if (pool->shutdown) {
             pthread_mutex_unlock(&pool->queue_mutex);
@@ -107,7 +116,8 @@ int tpool_destroy(struct tpool* pool) { // direct destroy the threads pool
 int tpool_wait(struct tpool* pool) {  // wait all tasks in threads pool run over
     pthread_mutex_lock(&pool->queue_mutex);
     while (pool->task_cnt) {
-        while(pthread_cond_wait(&pool->queue_empty, &pool->queue_mutex) != 0);
+        int err = pthread_cond_wait(&pool->queue_empty, &pool->queue_mutex);
+        CHECK(err);
     }
     pthread_mutex_unlock(&pool->queue_mutex);
     return 0;
@@ -131,7 +141,10 @@ int tpool_add_task(struct tpool* pool, int immed, void* (*task_func) (void*), vo
             pthread_mutex_unlock(&pool->queue_mutex);
             return 1;
         }
-        while (pthread_cond_wait(&pool->queue_space, &pool->queue_mutex) != 0);
+        do {
+            int err = pthread_cond_wait(&pool->queue_space, &pool->queue_mutex);
+            CHECK(err);
+        } while(pool->task_cnt == pool->task_limit);
     }
     if (!pool->task_cnt) {
         pool->queue_head = pool->queue_end = work;
