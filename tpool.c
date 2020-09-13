@@ -29,7 +29,7 @@ static void* routine_thread_func(void* arg) {
         // run task
         work->func(work->arg);
         free(work);
-        if (!pool->task_cnt) {
+        if (!pool->task_cnt) { // need to consider thundering herd problem
             pthread_cond_broadcast(&pool->queue_empty);
         }
     }
